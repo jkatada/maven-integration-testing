@@ -26,24 +26,21 @@ import org.apache.maven.it.Verifier;
 import org.apache.maven.it.util.ResourceExtractor;
 
 /**
- * This is a test set for <a href="https://issues.apache.org/jira/browse/MNG-3760">MNG-3760</a>.
- * 
- * @author Brett Porter
- * @version $Id$
+ * This is a test set for <a href="https://issues.apache.org/jira/browse/MNG-6386">MNG-6386</a>.
  */
-public class MavenITmng3760BaseUriPropertyTest
+public class MavenITmng6386BaseUriPropertyTest
     extends AbstractMavenIntegrationTestCase
 {
 
-    public MavenITmng3760BaseUriPropertyTest()
+    public MavenITmng6386BaseUriPropertyTest()
     {
-        super( "(2.1.0-M1,3.0-alpha-1),(3.0-alpha-2,3.5.4)" ); // 2.1.0-M2+
+        super( "[3.5.4,)" );
     }
 
-    public void testitMNG3760()
+    public void testitMNG6386()
         throws Exception
     {
-        File testDir = ResourceExtractor.simpleExtractResources( getClass(), "/mng-3760" ).getCanonicalFile();
+        File testDir = ResourceExtractor.simpleExtractResources( getClass(), "/mng-6386" ).getCanonicalFile();
 
         Verifier verifier = newVerifier( testDir.getAbsolutePath() );
         verifier.setAutoclean( false );
@@ -54,32 +51,37 @@ public class MavenITmng3760BaseUriPropertyTest
         verifier.resetStreams();
 
         Properties props = verifier.loadProperties( "target/profile.properties" );
+        String pomProperty = props.getProperty( "project.properties.pomProperty" );
         // set via project
-        assertEquals( testDir.toURI().toString(), props.getProperty( "project.properties.pomProperty" ) );
-        // check that project prefix is required
-        assertEquals( "${baseUri}", props.getProperty( "project.properties.baseUriProperty" ) );
+        assertEquals( testDir.toPath().toUri().toASCIIString(), pomProperty );
+        // check that baseUri begins with file:///
+        assertTrue( pomProperty.startsWith( "file:///" ) );
     }
 
-    public void testitMNG3760SystemPropertyOverride()
+     public void testitMNG6386UnicodeChars()
         throws Exception
     {
-        File testDir = ResourceExtractor.simpleExtractResources( getClass(), "/mng-3760" ).getCanonicalFile();
+        String fileEncoding = System.getProperty( "file.encoding" );
+        org.junit.Assume.assumeTrue( "UTF-8".equalsIgnoreCase( fileEncoding ) || "UTF8".equalsIgnoreCase( fileEncoding ) );
 
-        // check that setting baseUri doesn't override project value
+        File testDir = ResourceExtractor.simpleExtractResources( getClass(), "/mng-6386-это по-русский" ).getCanonicalFile();
+
         Verifier verifier = newVerifier( testDir.getAbsolutePath() );
         verifier.setAutoclean( false );
         verifier.deleteDirectory( "target" );
-        verifier.addCliOption( "-DbaseUri=myBaseUri" );
-        verifier.setLogFileName( "log-sysprop.txt" );
+        verifier.setLogFileName( "log-basic.txt" );
         verifier.executeGoal( "validate" );
         verifier.verifyErrorFreeLog();
         verifier.resetStreams();
 
         Properties props = verifier.loadProperties( "target/profile.properties" );
+        String pomProperty = props.getProperty( "project.properties.pomProperty" );
         // set via project
-        assertEquals( testDir.toURI().toString(), props.getProperty( "project.properties.pomProperty" ) );
-        // check that project prefix is required
-        assertEquals( "myBaseUri", props.getProperty( "project.properties.baseUriProperty" ) );
+        assertEquals( testDir.toPath().toUri().toASCIIString(), pomProperty );
+        // check that baseUri begins with file:///
+        assertTrue( pomProperty.startsWith( "file:///" ) );
+        // check that baseUri ends with это по-русский/
+        assertTrue( pomProperty.endsWith( "%D1%8D%D1%82%D0%BE%20%D0%BF%D0%BE-%D1%80%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B9/" ) );
     }
 
 }
